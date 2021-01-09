@@ -4,12 +4,100 @@ import json
 import terminalio
 from adafruit_magtag.magtag import MagTag
 
-PLAINFONT = False     # Use built in font if True
+#provide a local configuration file that inits
+config = json.loads(open("config.json").read())
+
+#attempt to get an updated version of the config file online.
+import ipaddress
+import ssl
+import wifi
+import socketpool
+import adafruit_requests
+
+# URLs to fetch from
+TEXT_URL = "https://raw.githubusercontent.com/danlemire/danlemire.github.io/main/config.json"
+JSON_QUOTES_URL = "https://www.adafruit.com/api/quotes.php"
+JSON_STARS_URL = "https://api.github.com/repos/adafruit/circuitpython"
+
+# Get wifi details and more from a secrets.py file
+try:
+    from secrets import secrets
+except ImportError:
+    print("WiFi secrets are kept in secrets.py, please add them there!")
+    raise
+
+print("ESP32-S2 WebClient Test")
+
+print("My MAC addr:", [hex(i) for i in wifi.radio.mac_address])
+
+print("Available WiFi networks:")
+for network in wifi.radio.start_scanning_networks():
+    print("\t%s\t\tRSSI: %d\tChannel: %d" % (str(network.ssid, "utf-8"),
+            network.rssi, network.channel))
+wifi.radio.stop_scanning_networks()
+
+print("Connecting to %s"%secrets["ssid"])
+wifi.radio.connect(secrets["ssid"], secrets["password"])
+print("Connected to %s!"%secrets["ssid"])
+print("My IP address is", wifi.radio.ipv4_address)
+
+ipv4 = ipaddress.ip_address("1.1.1.1")
+print("Ping cloudflare: %f ms" % wifi.radio.ping(ipv4))
+
+pool = socketpool.SocketPool(wifi.radio)
+requests = adafruit_requests.Session(pool, ssl.create_default_context())
+
+print("Fetching text from", TEXT_URL)
+response = requests.get(TEXT_URL)
+print("-" * 40)
+print(response.text)
+print("-" * 40)
+
+print("Fetching json from", JSON_QUOTES_URL)
+response = requests.get(JSON_QUOTES_URL)
+print("-" * 40)
+print(response.json())
+print("-" * 40)
+
+print()
+
+print("Fetching and parsing json from", JSON_STARS_URL)
+response = requests.get(JSON_STARS_URL)
+print("-" * 40)
+print("CircuitPython GitHub Stars", response.json()["stargazers_count"])
+print("-" * 40)
+
+print("done")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def get_config():
+    print(json.dumps(config))
+    #magtag.set_text("config['openweather_token']",0,False) #index
+    
+get_config()
+
+PLAINFONT = config['plainfont']     # Use built in font if True
 
 magtag = MagTag()
-magtag.peripherals.neopixel_disable = True # turn on lights
+magtag.peripherals.neopixel_disable = config['neopixels_disable'] # turn on lights
 magtag.set_background(0xFFFFFF)    # set to white background
-#magtag.set_background("magtag_bible.bmp")
+if config['backgroundFile'] is not "":
+    magtag.set_background(config['backgroundFile'])
 magtag.peripherals.neopixels.fill(0x000000) # red!
 #magtag.refresh()
   
@@ -56,8 +144,8 @@ def get_ref(index):
 
 get_verse(0)
 
-button_colors = ((255, 255, 0), (255, 0, 0), (0, 0, 255), (0, 255, 0))
-button_tones = (1047, 1318, 1568, 2093)
+button_colors = config['buttoncolors'] #((255, 255, 0), (255, 0, 0), (0, 0, 255), (0, 255, 0))
+button_tones = config['buttontones']
 verse_count = -1
 for a in verses:
     verse_count+=1
