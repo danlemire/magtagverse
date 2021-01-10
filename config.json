@@ -1,0 +1,11 @@
+{
+    "datasource" : "https://raw.githubusercontent.com/danlemire/magtagverse/source-data-config/webverses.json",
+    "mode" : "local|remote",
+    "readmode" : "sequential|random",
+    "sleep" : "0.1",
+    "deepsleep" : "3600*24",
+    "reloadmode" : "reset|continue",
+    "neopixels_disable" : false,
+    "plainfont" : false,
+    "backgroundfile" : ""
+}
