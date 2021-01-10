@@ -4,6 +4,8 @@ import json
 import terminalio
 from adafruit_magtag.magtag import MagTag
 
+magtag = MagTag()
+
 #provide a local configuration file that inits
 config = json.loads(open("config.json").read())
 
@@ -17,7 +19,6 @@ import adafruit_requests
 # URLs to fetch from
 TEXT_URL = "https://raw.githubusercontent.com/danlemire/danlemire.github.io/main/config.json"
 JSON_QUOTES_URL = "https://www.adafruit.com/api/quotes.php"
-JSON_STARS_URL = "https://api.github.com/repos/adafruit/circuitpython"
 
 # Get wifi details and more from a secrets.py file
 try:
@@ -26,23 +27,31 @@ except ImportError:
     print("WiFi secrets are kept in secrets.py, please add them there!")
     raise
 
-print("ESP32-S2 WebClient Test")
-
-print("My MAC addr:", [hex(i) for i in wifi.radio.mac_address])
-
-print("Available WiFi networks:")
-for network in wifi.radio.start_scanning_networks():
-    print("\t%s\t\tRSSI: %d\tChannel: %d" % (str(network.ssid, "utf-8"),
-            network.rssi, network.channel))
-wifi.radio.stop_scanning_networks()
-
+magtag.peripherals.neopixels[3] = 0x0000FF
 print("Connecting to %s"%secrets["ssid"])
-wifi.radio.connect(secrets["ssid"], secrets["password"])
+
+try: 
+    wifi.radio.connect(secrets["ssid"], secrets["password"])
+except : 
+    print("My MAC addr:", [hex(i) for i in wifi.radio.mac_address])
+    print("Available WiFi networks:")
+    for network in wifi.radio.start_scanning_networks():
+        print("\t%s\t\tRSSI: %d\tChannel: %d" % (str(network.ssid, "utf-8"),
+                network.rssi, network.channel))
+    wifi.radio.stop_scanning_networks()
+
+try: 
+    wifi.radio.connect(secrets["ssid"], secrets["password"])
+except ImportError: 
+    print('import error')
+
 print("Connected to %s!"%secrets["ssid"])
 print("My IP address is", wifi.radio.ipv4_address)
 
-ipv4 = ipaddress.ip_address("1.1.1.1")
-print("Ping cloudflare: %f ms" % wifi.radio.ping(ipv4))
+magtag.peripherals.neopixels[2] = 0x00FF00
+    
+#ipv4 = ipaddress.ip_address("1.1.1.1")
+#print("Ping cloudflare: %f ms" % wifi.radio.ping(ipv4))
 
 pool = socketpool.SocketPool(wifi.radio)
 requests = adafruit_requests.Session(pool, ssl.create_default_context())
@@ -50,40 +59,26 @@ requests = adafruit_requests.Session(pool, ssl.create_default_context())
 print("Fetching text from", TEXT_URL)
 response = requests.get(TEXT_URL)
 print("-" * 40)
-print(response.text)
+print(response)
 print("-" * 40)
 
-print("Fetching json from", JSON_QUOTES_URL)
-response = requests.get(JSON_QUOTES_URL)
-print("-" * 40)
-print(response.json())
-print("-" * 40)
+magtag.peripherals.neopixels[1] = 0xFFFF00
+config = response.json()
+print(config)
 
-print()
-
-print("Fetching and parsing json from", JSON_STARS_URL)
-response = requests.get(JSON_STARS_URL)
+print("Fetching json from", config['datasource'])
+webverse = requests.get(config['datasource'])
 print("-" * 40)
-print("CircuitPython GitHub Stars", response.json()["stargazers_count"])
+print(webverse.json())
 print("-" * 40)
-
+magtag.peripherals.neopixels[0] = 0xFF0000
 print("done")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+magtag.peripherals.neopixels[3] = 0xFFFFFF
+magtag.peripherals.neopixels[2] = 0xFFFFFF
+magtag.peripherals.neopixels[1] = 0xFFFFFF
+magtag.peripherals.neopixels[0] = 0xFFFFFF
+    
 
 def get_config():
     print(json.dumps(config))
@@ -93,16 +88,22 @@ get_config()
 
 PLAINFONT = config['plainfont']     # Use built in font if True
 
-magtag = MagTag()
 magtag.peripherals.neopixel_disable = config['neopixels_disable'] # turn on lights
 magtag.set_background(0xFFFFFF)    # set to white background
-if config['backgroundFile'] is not "":
-    magtag.set_background(config['backgroundFile'])
+if config['backgroundfile'] is not "":
+    magtag.set_background(config['backgroundfile'])
 magtag.peripherals.neopixels.fill(0x000000) # red!
 #magtag.refresh()
-  
-verses = json.loads(open("verses.json").read())
 
+if config['mode'] is 'local': 
+    verses = json.loads(open("verses.json").read())
+    print("using local verses.")
+else:
+    verses = webverse.json()
+    print("using web verses")
+    print('.......................................................')
+    print(json.dumps(verses))
+    print('.......................................................')
 # main text large font, used to display script index 0 during dev.
 magtag.add_text(
     text_font = terminalio.FONT if PLAINFONT else "Arial-Bold-24.bdf",
@@ -144,8 +145,11 @@ def get_ref(index):
 
 get_verse(0)
 
-button_colors = config['buttoncolors'] #((255, 255, 0), (255, 0, 0), (0, 0, 255), (0, 255, 0))
-button_tones = config['buttontones']
+btncolor = tuple(map(list, config['buttoncolors'].split(', ')))
+print(btncolor)
+
+button_colors = ((255, 255, 0), (255, 0, 0), (0, 0, 255), (0, 255, 0))
+button_tones = list(config['buttontones'])
 verse_count = -1
 for a in verses:
     verse_count+=1
