@@ -27,58 +27,6 @@ except ImportError:
     print("WiFi secrets are kept in secrets.py, please add them there!")
     raise
 
-magtag.peripherals.neopixels[3] = 0x0000FF
-print("Connecting to %s"%secrets["ssid"])
-
-try: 
-    wifi.radio.connect(secrets["ssid"], secrets["password"])
-except : 
-    print("My MAC addr:", [hex(i) for i in wifi.radio.mac_address])
-    print("Available WiFi networks:")
-    for network in wifi.radio.start_scanning_networks():
-        print("\t%s\t\tRSSI: %d\tChannel: %d" % (str(network.ssid, "utf-8"),
-                network.rssi, network.channel))
-    wifi.radio.stop_scanning_networks()
-
-try: 
-    wifi.radio.connect(secrets["ssid"], secrets["password"])
-except ImportError: 
-    print('import error')
-
-print("Connected to %s!"%secrets["ssid"])
-print("My IP address is", wifi.radio.ipv4_address)
-
-magtag.peripherals.neopixels[2] = 0x00FF00
-    
-#ipv4 = ipaddress.ip_address("1.1.1.1")
-#print("Ping cloudflare: %f ms" % wifi.radio.ping(ipv4))
-
-pool = socketpool.SocketPool(wifi.radio)
-requests = adafruit_requests.Session(pool, ssl.create_default_context())
-
-print("Fetching text from", TEXT_URL)
-response = requests.get(TEXT_URL)
-print("-" * 40)
-print(response)
-print("-" * 40)
-
-magtag.peripherals.neopixels[1] = 0xFFFF00
-config = response.json()
-print(config)
-
-print("Fetching json from", config['datasource'])
-webverse = requests.get(config['datasource'])
-print("-" * 40)
-print(webverse.json())
-print("-" * 40)
-magtag.peripherals.neopixels[0] = 0xFF0000
-print("done")
-
-magtag.peripherals.neopixels[3] = 0xFFFFFF
-magtag.peripherals.neopixels[2] = 0xFFFFFF
-magtag.peripherals.neopixels[1] = 0xFFFFFF
-magtag.peripherals.neopixels[0] = 0xFFFFFF
-    
 
 def get_config():
     print(json.dumps(config))
@@ -145,11 +93,8 @@ def get_ref(index):
 
 get_verse(0)
 
-btncolor = tuple(map(list, config['buttoncolors'].split(', ')))
-print(btncolor)
-
 button_colors = ((255, 255, 0), (255, 0, 0), (0, 0, 255), (0, 255, 0))
-button_tones = list(config['buttontones'])
+button_tones = (1047, 1318, 1568, 2093)
 verse_count = -1
 for a in verses:
     verse_count+=1
@@ -177,7 +122,59 @@ while True:
             if i == 3:
                 j+=1 #go forward 10 records
             if j < 0: 
-                j=0 # if before first record just show the first record 
+                j=0 # if before first record just show the first record and try wifi update
+                magtag.peripherals.neopixels[3] = 0x0000FF
+                print("Connecting to %s"%secrets["ssid"])
+        
+                try: 
+                    wifi.radio.connect(secrets["ssid"], secrets["password"])
+                except : 
+                    print("My MAC addr:", [hex(i) for i in wifi.radio.mac_address])
+                    print("Available WiFi networks:")
+                    for network in wifi.radio.start_scanning_networks():
+                        print("\t%s\t\tRSSI: %d\tChannel: %d" % (str(network.ssid, "utf-8"),
+                                network.rssi, network.channel))
+                    wifi.radio.stop_scanning_networks()
+
+                try: 
+                    wifi.radio.connect(secrets["ssid"], secrets["password"])
+                except ImportError: 
+                    print('import error')
+
+                print("Connected to %s!"%secrets["ssid"])
+                print("My IP address is", wifi.radio.ipv4_address)
+
+                magtag.peripherals.neopixels[2] = 0x00FF00
+                    
+                #ipv4 = ipaddress.ip_address("1.1.1.1")
+                #print("Ping cloudflare: %f ms" % wifi.radio.ping(ipv4))
+
+                pool = socketpool.SocketPool(wifi.radio)
+                requests = adafruit_requests.Session(pool, ssl.create_default_context())
+
+                print("Fetching text from", TEXT_URL)
+                response = requests.get(TEXT_URL)
+                print("-" * 40)
+                print(response)
+                print("-" * 40)
+
+                magtag.peripherals.neopixels[1] = 0xFFFF00
+                config = response.json()
+                print(config)
+
+                print("Fetching json from", config['datasource'])
+                webverse = requests.get(config['datasource'])
+                print("-" * 40)
+                print(webverse.json())
+                print("-" * 40)
+                magtag.peripherals.neopixels[0] = 0xFF0000
+                print("done")
+
+                magtag.peripherals.neopixels[3] = 0xFFFFFF
+                magtag.peripherals.neopixels[2] = 0xFFFFFF
+                magtag.peripherals.neopixels[1] = 0xFFFFFF
+                magtag.peripherals.neopixels[0] = 0xFFFFFF
+                    
             if j > verse_count:
                 j = verse_count # if after last, show last record
             get_verse(j)
